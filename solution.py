@@ -46,6 +46,11 @@ def build_packet():
 
     # Make the header in a similar way to the ping exercise.
     # Append checksum to the header.
+    Checksum = 0
+    ICMP_ID = os.getpid() & 0xffff
+    header = struct.pack("bbHHh", ICMP_ECHO_REQUEST, 0, Checksum, ICMP_ID, 1)
+    icmp_data = struct.pack("d", time.time())
+    Checksum = checksum(header + icmp_data)
 
     # Don’t send the packet yet , just return the final packet in this function.
     #Fill in end
@@ -65,6 +70,8 @@ def get_route(hostname):
 
             #Fill in start
             # Make a raw socket named mySocket
+            icmp_Protocol = getprotobyname("icmp")
+            mySocket = socket(AF_INET, SOCK_RAW, icmp_Protocol)
             #Fill in end
 
             mySocket.setsockopt(IPPROTO_IP, IP_TTL, struct.pack('I', ttl))
@@ -79,6 +86,9 @@ def get_route(hostname):
                 if whatReady[0] == []: # Timeout
                     #Fill in start
                     #append response to your dataframe including hop #, try #, and "Timeout" responses as required by the acceptance criteria
+                     df = df.append(
+                        {'Hop Count': ttl, 'Try': TRIES, 'IP': "timeout", 'Hostname': "timeout",
+                         'Response Code': "timeout"}, ignore_index=True)
                     #print (df)
                     #Fill in end
                 recvPacket, addr = mySocket.recvfrom(1024)
@@ -87,6 +97,9 @@ def get_route(hostname):
                 if timeLeft <= 0:
                     #Fill in start
                     #append response to your dataframe including hop #, try #, and "Timeout" responses as required by the acceptance criteria
+                     df = df.append(
+                        {'Hop Count': ttl, 'Try': TRIES, 'IP': "timeout", 'Hostname': "timeout",
+                         'Response Code': "timeout"}, ignore_index=True)
                     #print (df)
                     #Fill in end
             except Exception as e:
@@ -96,12 +109,16 @@ def get_route(hostname):
             else:
                 #Fill in start
                 #Fetch the icmp type from the IP packet
+                ICMP_HEADER = recvPacket[20:28]
+                types, ICMP_CODE, ICMP_CHECKSUM, ICMP_ID, ICMP_SEQUENCE = struct.unpack("bbHHh", ICMP_HEADER)
                 #Fill in end
                 try: #try to fetch the hostname
                     #Fill in start
+                    HOST_NAME = gethostbyaddr(str(addr[0]))[0]
                     #Fill in end
                 except herror:   #if the host does not provide a hostname
                     #Fill in start
+                    HOST_NAME = "hostname not returnable"
                     #Fill in end
 
                 if types == 11:
@@ -109,22 +126,27 @@ def get_route(hostname):
                     timeSent = struct.unpack("d", recvPacket[28:28 +
                     bytes])[0]
                     #Fill in start
+                     df = df.append({'Hop Count': ttl, 'Try': TRIES, 'IP': destAddr, 'Hostname': str(HOST_NAME), 'Response Code': 11}, ignore_index=True)
                     #You should update your dataframe with the required column field responses here
                     #Fill in end
                 elif types == 3:
                     bytes = struct.calcsize("d")
                     timeSent = struct.unpack("d", recvPacket[28:28 + bytes])[0]
                     #Fill in start
+                    df = df.append({'Hop Count': ttl, 'Try': TRIES, 'IP': destAddr, 'Hostname': str(HOST_NAME),'Response Code': 3}, ignore_index=True)
                     #You should update your dataframe with the required column field responses here
                     #Fill in end
                 elif types == 0:
                     bytes = struct.calcsize("d")
                     timeSent = struct.unpack("d", recvPacket[28:28 + bytes])[0]
                     #Fill in start
+                    df = df.append({'Hop Count': ttl, 'Try': TRIES, 'IP': destAddr, 'Hostname': str(HOST_NAME),'Response Code': 0}, ignore_index=True)
+
                     #You should update your dataframe with the required column field responses here
                     #Fill in end
                 else:
                     #Fill in start
+                    print("Error")
                     #If there is an exception/error to your if statements, you should append that to your df here
                     #Fill in end
                 break
